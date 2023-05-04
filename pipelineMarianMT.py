@@ -12,31 +12,25 @@ from transformers import AutoModelForSeq2SeqLM, DataCollatorForSeq2Seq, Seq2SeqT
 from transformers import AdamW
 import datasets
 
+from utils import tokenizeInstances
+from customDataset import LoadDataset, collate_fn
+
 import warnings
 warnings.filterwarnings('ignore')
 
 
 if __name__ == "__main__":
-	# ---------------------------------------------------------------
+	
 
-	# df = pd.read_csv('/home/uiu/nlp/GEC/corpus/gecV4.csv')
-	# # df = df.iloc[:(len(df) // 10) * 8, :]
-	# df = df.iloc[:200000, :]
-	# print("df loaded")
-	# print(f"Total no of instances: {len(df)}")
+	train_df = pd.read_csv('/home/uiu/nlp/GEC/BanglaGEC/corpus/train.csv')
+	valid_df = pd.read_csv('/home/uiu/nlp/GEC/BanglaGEC/corpus/valid.csv')
+	test_df = pd.read_csv('/home/uiu/nlp/GEC/BanglaGEC/corpus/test.csv')
 
-	# train_df, test_df = train_test_split(df, test_size=0.1)
-	# train_df = train_df.reset_index(drop=True)
-	# test_df = test_df.reset_index(drop=True)
-	# train_df.to_csv('/home/uiu/nlp/GEC/corpus/train_df_gecV4.csv', index=False)
-	# test_df.to_csv('/home/uiu/nlp/GEC/corpus/test_df_gecV4.csv', index=False)
+	print(f"#no. of training instances: {len(train_df)}")
+	print(f"#no. of validation instances: {len(valid_df)}")
+	print(f"#no. of test instances: {len(test_df)}")
+	print(f"Total: {len(train_df) + len(valid_df) + len(test_df)}")
 
-	# ---------------------------------------------------------------
-
-	train_df = pd.read_csv('/home/uiu/nlp/GEC/corpus/train_df_gecV4.csv')
-	test_df = pd.read_csv('/home/uiu/nlp/GEC/corpus/test_df_gecV4.csv')
-	print(f"Total no of training instances: {len(train_df)}")
-	print(f"Total no of test instances: {len(test_df)}")
 	print("train and test df are loaded")
 
 	# ---------------------------------------------------------------
@@ -46,58 +40,17 @@ if __name__ == "__main__":
 	# ---------------------------------------------------------------
 
 	print("training instances are being tokenized")
-	train_sources_encodings = []
-	train_mask_encodings = []
-	train_targets_encodings = []
-
-	for i in tqdm(range(len(train_df))):
-	    correct = train_df['Correct'][i]
-	    erroneous = train_df['Erroneous'][i]
-	    # print(correct) 
-	    # print(erroneous)  
-	    correct_encoding = tokenizer(correct)
-	    erroneous_encoding = tokenizer(erroneous)
-	    # print(correct_encoding)
-	    # print(erroneous_encoding)
-	    train_source_encoding = erroneous_encoding['input_ids']
-	    train_mask_encoding = erroneous_encoding['attention_mask']
-	    train_target_encoding = correct_encoding['input_ids']
-	    # print(train_source_encoding)
-	    # print(train_mask_encoding)
-	    # print(train_target_encoding)
-	    train_sources_encodings.append(train_source_encoding)
-	    train_mask_encodings.append(train_mask_encoding)
-	    train_targets_encodings.append(train_target_encoding)
-	    # break
-	# 
+	train_sources_encodings, train_mask_encodings, train_targets_encodings = tokenizeInstances(tokenizer, train_df)
 	
 	# ---------------------------------------------------------------
 
-	print("test instances are being tokenized")
-	test_sources_encodings = []
-	test_mask_encodings = []
-	test_targets_encodings = []
+	print("validation instances are being tokenized")
+	valid_sources_encodings, valid_mask_encodings, valid_targets_encodings = tokenizeInstances(tokenizer, valid_df)
 
-	for i in tqdm(range(len(test_df))):
-	    correct = test_df['Correct'][i]
-	    erroneous = test_df['Erroneous'][i]
-	    # print(correct) 
-	    # print(erroneous)  
-	    correct_encoding = tokenizer(correct)
-	    erroneous_encoding = tokenizer(erroneous)
-	    # print(correct_encoding)
-	    # print(erroneous_encoding)
-	    test_source_encoding = erroneous_encoding['input_ids']
-	    test_mask_encoding = erroneous_encoding['attention_mask']
-	    test_target_encoding = correct_encoding['input_ids']
-	    # print(train_source_encoding)
-	    # print(train_mask_encoding)
-	    # print(train_target_encoding)
-	    test_sources_encodings.append(test_source_encoding)
-	    test_mask_encodings.append(test_mask_encoding)
-	    test_targets_encodings.append(test_target_encoding)
-	    # break
-	# 
+	# ---------------------------------------------------------------
+
+	print("test instances are being tokenized")
+	test_sources_encodings, test_mask_encodings, test_targets_encodings = tokenizeInstances(tokenizer, test_df)
 
 	# ---------------------------------------------------------------
 
@@ -105,48 +58,16 @@ if __name__ == "__main__":
 
 	# ---------------------------------------------------------------
 
-	class LoadDataset(torch.utils.data.Dataset):
-	    def __init__(self, source_encodings, mask_encodings, targets_encodings):
-	        self.source_encodings = source_encodings
-	        self.mask_encodings = mask_encodings
-	        self.targets_encodings = targets_encodings
-	    
-	    def __getitem__(self, idx):
-	        input_ids = torch.tensor(self.source_encodings[idx]).squeeze()
-	        attention_mask = torch.tensor(self.mask_encodings[idx]).squeeze()
-	        target_ids = torch.tensor(self.targets_encodings[idx]).squeeze()
-	        return input_ids, attention_mask, target_ids
-	    
-	    def __len__(self):
-	        return len(self.source_encodings)
-	
-	# ---------------------------------------------------------------
-
 	train_dataset = LoadDataset(train_sources_encodings, train_mask_encodings, train_targets_encodings)
+	valid_dataset = LoadDataset(valid_sources_encodings, valid_mask_encodings, valid_targets_encodings)
 	test_dataset = LoadDataset(test_sources_encodings, test_mask_encodings, test_targets_encodings)
-
-
-	# ---------------------------------------------------------------
-
-	def collate_fn(batch):
-	    sources, masks, targets = [], [], []
-
-	    for (_source, _mask, _target) in batch:
-	        sources.append(_source)
-	        masks.append(_mask)
-	        targets.append(_target)
-
-	    sources = pad_sequence(sources, batch_first=True, padding_value=0)
-	    masks = pad_sequence(masks, batch_first=True, padding_value=0)
-	    targets = pad_sequence(targets, batch_first=True, padding_value=0)
-
-	    return sources, masks, targets
 
 	# ---------------------------------------------------------------
 
 	train_loader = DataLoader(train_dataset, batch_size=16, collate_fn=collate_fn, shuffle=True)
+	valid_loader = DataLoader(valid_dataset, batch_size=16, collate_fn=collate_fn, shuffle=False)
 	test_loader = DataLoader(test_dataset, batch_size=16, collate_fn=collate_fn, shuffle=False)
-	print("training and test dataloaders are in action with collate fn")
+	print("training, validation and test dataloaders are in action with collate fn")
 
 	# ---------------------------------------------------------------
 
@@ -161,7 +82,7 @@ if __name__ == "__main__":
 
 	optim = AdamW(model.parameters(), lr=5e-5)
 
-	N_EPOCHS = 50
+	N_EPOCHS = 200
 	epoch = 0
 
 	loss = 10e9
@@ -172,23 +93,21 @@ if __name__ == "__main__":
 	PATH = '/home/uiu/nlp/GEC/HFPipeline/checkpoints/saved_model_BPMarianMT.pth'
 
 	if os.path.exists(PATH):
-	    checkpoint = torch.load(PATH)
-	    model.load_state_dict(checkpoint['model_state_dict'])
+		checkpoint = torch.load(PATH)
+		model.load_state_dict(checkpoint['model_state_dict'])
 
 	print("knowledge transfered")
 
 	# ---------------------------------------------------------------
 
-
-	# PATH = '/home/uiu/nlp/GEC/HFPipeline/checkpoints/saved_model_gecV4.pth' # banglaT5 76.96%
-	# PATH = '/home/uiu/nlp/GEC/HFPipeline/checkpoints/saved_model_gecV4T5Small.pth' # T5Small 71.44%
-	PATH = '/home/uiu/nlp/GEC/HFPipeline/checkpoints/saved_model_gecV4OpusMarianMT.pth' # MarianMT 93.07%
+	# PATH = '/home/uiu/nlp/GEC/HFPipeline/checkpoints/GECBanglaT5.pth' # banglaT5 76.96%
+	PATH = '/home/uiu/nlp/GEC/HFPipeline/checkpoints/saved_model_gecV4MarianMT.pth' # 
 
 	if os.path.exists(PATH):
-	    checkpoint = torch.load(PATH)
-	    model.load_state_dict(checkpoint['model_state_dict'])
-	    epoch = checkpoint['epoch']
-	    loss = checkpoint['loss']  
+		checkpoint = torch.load(PATH)
+		model.load_state_dict(checkpoint['model_state_dict'])
+		epoch = checkpoint['epoch']
+		loss = checkpoint['loss']  
 
 	print("incorporated model checkpoint")
 	# ---------------------------------------------------------------
@@ -224,12 +143,10 @@ if __name__ == "__main__":
 	        print(f"{'-'*20}\nModel Saved at {PATH}\n{'-'*20}\n")
 	# Training Loop Ends Here
 
-
-
 	# ---------------------------------------------------------------
 
 	# PATH = '/home/uiu/nlp/GEC/HFPipeline/checkpoints/GECBanglaT5.pth' # banglaT5 76.96%
-	PATH = '/home/uiu/nlp/GEC/HFPipeline/checkpoints/saved_model_gecV4OpusMarianMT.pth' # 
+	PATH = '/home/uiu/nlp/GEC/HFPipeline/checkpoints/saved_model_gecV4MarianMT.pth' # 
 
 	if os.path.exists(PATH):
 	    checkpoint = torch.load(PATH)
@@ -238,9 +155,6 @@ if __name__ == "__main__":
 	    loss = checkpoint['loss']  
 
 	print("incorporated model checkpoint")
-
-	# ---------------------------------------------------------------
-
 
 	# ---------------------------------------------------------------
 
@@ -291,21 +205,18 @@ if __name__ == "__main__":
 
 	# Evaluation Loop Ends Here
 
-	# # ---------------------------------------------------------------
+	# ---------------------------------------------------------------
 
-	# for _ in range(50):
-	#     idx = random.randint(0, 1000)
+	# for _ in range(20):
+	#     idx = random.randint(0, 10)
 	#     src_text = test_df['Erroneous'][idx]
 	#     trg_text = test_df['Correct'][idx]
 
 	#     predicted = model.generate(**tokenizer(src_text, return_tensors="pt", padding=True).to(device))
-	#     prd_text = ' '.join(([tokenizer.decode(token, skip_special_tokens=True) for token in predicted][0]).split()[1:])
-	#     # prd_text = [tokenizer.decode(token, skip_special_tokens=True) for token in predicted][0]
+	#     prd_text = [tokenizer.decode(token, skip_special_tokens=True) for token in predicted][0]
 
 	#     print(f"Err: {src_text}\nPrd: {prd_text}\nTrg: {trg_text}\n{prd_text == trg_text}\n")
-	# # prediction generation
-
-	# # ---------------------------------------------------------------
+	# prediction generation
 
 	# ---------------------------------------------------------------
 
@@ -344,7 +255,7 @@ if __name__ == "__main__":
 	bertscoreResults = bertscore.compute(predictions=preds, references=refs4BERTscore, lang="bn")
 	print(f"bertscoreResults = {sum(bertscoreResults['f1'])/len(bertscoreResults['f1'])*100:.2f}")
 	# print(f"{sum(bertscoreResults['f1'])/len(bertscoreResults['f1'])*100:.2f}")
-	# ---------------------------------------------------------------
+
 
 
 

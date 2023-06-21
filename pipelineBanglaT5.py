@@ -65,9 +65,9 @@ if __name__ == "__main__":
 
 	# ---------------------------------------------------------------
 
-	train_loader = DataLoader(train_dataset, batch_size=16, collate_fn=collate_fn, shuffle=True)
-	valid_loader = DataLoader(valid_dataset, batch_size=16, collate_fn=collate_fn, shuffle=False)
-	test_loader = DataLoader(test_dataset, batch_size=16, collate_fn=collate_fn, shuffle=False)
+	train_loader = DataLoader(train_dataset, batch_size=8, collate_fn=collate_fn, shuffle=True)
+	valid_loader = DataLoader(valid_dataset, batch_size=8, collate_fn=collate_fn, shuffle=False)
+	test_loader = DataLoader(test_dataset, batch_size=8, collate_fn=collate_fn, shuffle=False)
 	print("training, validation and test dataloaders are in action with collate fn")
 
 	# ---------------------------------------------------------------
@@ -83,7 +83,7 @@ if __name__ == "__main__":
 
 	optim = AdamW(model.parameters(), lr=5e-5)
 
-	N_EPOCHS = 50
+	N_EPOCHS = 20
 	epoch = 0
 
 	loss = 10e9

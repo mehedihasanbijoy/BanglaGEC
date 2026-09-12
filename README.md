@@ -57,13 +57,13 @@ python main.py --CORPUS_PATH "./Dataset/corpus.csv" --CHECKPOINT_PATH "./Checkpo
 
 ```
 @article{hossain2024panini,
-  title={Panini: a transformer-based grammatical error correction method for Bangla},
+  title={Panini: a transformer-based grammatical error correction method for bangla},
   author={Hossain, Nahid and Bijoy, Mehedi Hasan and Islam, Salekul and Shatabda, Swakkhar},
   journal={Neural Computing and Applications},
   volume={36},
+  number={7},
   pages={3463--3477},
   year={2024},
-  doi={10.1007/s00521-023-09211-7},
-  publisher={Springer Nature}
+  publisher={Springer}
 }
 ```
